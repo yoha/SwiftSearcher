@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import SafariServices
 
 class MasterViewController: UITableViewController {
 
@@ -44,6 +45,13 @@ class MasterViewController: UITableViewController {
         
         return titleString
     }
+    
+    func showTutorial(which: Int) {
+        if let url = NSURL(string: "https://www.hackingwithswift.com/read/\(which + 1)") {
+            let safariViewController = SFSafariViewController(URL: url, entersReaderIfAvailable: false)
+            self.presentViewController(safariViewController, animated: true, completion: nil)
+        }
+    }
 
     // MARK: - Table View
 
@@ -62,6 +70,10 @@ class MasterViewController: UITableViewController {
 
     override func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
         
+    }
+    
+    override func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+        self.showTutorial(indexPath.row)
     }
     
     override func tableView(tableView: UITableView, estimatedHeightForRowAtIndexPath indexPath: NSIndexPath) -> CGFloat {
