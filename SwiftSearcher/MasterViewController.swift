@@ -8,11 +8,17 @@
 
 import UIKit
 import SafariServices
+import CoreSpotlight
+import MobileCoreServices
 
 class MasterViewController: UITableViewController {
+    
+    // MARK: - Stored Properties
 
     var projects = Array<[String]>()
+    var favorites = [Int]()
 
+    // MARK: - Methods Override
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -25,6 +31,14 @@ class MasterViewController: UITableViewController {
         self.projects.append(["Project 6: Auto Layout", "Get to grips with Auto Layout using practical examples and code"])
         self.projects.append(["Project 7: Whitehouse Petitions", "JSON, NSData, UITabBarController"])
         self.projects.append(["Project 8: 7 Swifty Words", "addTarget(), enumerate(), countElements(), find(), join(), property observers, range operators."])
+        
+        let userDefaults = NSUserDefaults.standardUserDefaults()
+        if let savedFavorites = userDefaults.objectForKey("favorites") as? [Int] {
+            self.favorites = savedFavorites
+        }
+        
+        self.tableView.editing = true
+        self.tableView.allowsSelectionDuringEditing = true
     }
 
     override func didReceiveMemoryWarning() {
@@ -33,6 +47,38 @@ class MasterViewController: UITableViewController {
     }
     
     // MARK: - Local Methods
+    
+    func deIndexItem(which: Int) {
+        CSSearchableIndex.defaultSearchableIndex().deleteSearchableItemsWithIdentifiers(["\(which)"]) { (error: NSError?) -> Void in
+            if let error = error {
+                print("Deindexing error: \(error.localizedDescription)")
+            }
+            else {
+                print("Search item successfully removed!")
+            }
+        }
+        
+    }
+    
+    func indexItem(which: Int) {
+        let project = self.projects[which]
+        
+        let searchableItemAttributeSet = CSSearchableItemAttributeSet(itemContentType: kUTTypeText as String)
+        searchableItemAttributeSet.title = project.first!
+        searchableItemAttributeSet.contentDescription = project[1]
+        
+        let searchableItem = CSSearchableItem(uniqueIdentifier: "\(which)", domainIdentifier: "com.hackingwithswift", attributeSet: searchableItemAttributeSet)
+        searchableItem.expirationDate = NSDate.distantFuture()
+        
+        CSSearchableIndex.defaultSearchableIndex().indexSearchableItems([searchableItem]) { (error: NSError?) -> Void in
+            if let error = error {
+                print("Indexing error: \(error.localizedDescription)")
+            }
+            else {
+                print("Search item successfully indexed!")
+            }
+        }
+    }
     
     func makeAttributedString(title title: String, subtitle: String) -> NSAttributedString {
         let titleAttributes = [NSFontAttributeName: UIFont.preferredFontForTextStyle(UIFontTextStyleHeadline), NSForegroundColorAttributeName: UIColor.redColor()]
@@ -65,15 +111,36 @@ class MasterViewController: UITableViewController {
         let project = self.projects[indexPath.row]
         cell.textLabel?.attributedText = self.makeAttributedString(title: project.first!, subtitle: project.last!)
         
+        cell.editingAccessoryType = self.favorites.contains(indexPath.row) ? UITableViewCellAccessoryType.Checkmark : .None
+        
         return cell
     }
 
     override func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
+        if editingStyle == .Insert {
+            self.favorites.append(indexPath.row)
+            self.indexItem(indexPath.row)
+        }
+        else {
+            if let index = self.favorites.indexOf(indexPath.row) {
+                self.favorites.removeAtIndex(index)
+                self.deIndexItem(indexPath.row)
+            }
+        }
         
+        let userDefaults = NSUserDefaults.standardUserDefaults()
+        userDefaults.setObject(self.favorites, forKey: "favorites")
+        
+        self.tableView.reloadRowsAtIndexPaths([indexPath], withRowAnimation: UITableViewRowAnimation.None)
+
     }
     
     override func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
         self.showTutorial(indexPath.row)
+    }
+    
+    override func tableView(tableView: UITableView, editingStyleForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCellEditingStyle {
+        return self.favorites.contains(indexPath.row) ? UITableViewCellEditingStyle.Delete : .Insert
     }
     
     override func tableView(tableView: UITableView, estimatedHeightForRowAtIndexPath indexPath: NSIndexPath) -> CGFloat {
